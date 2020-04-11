@@ -2,33 +2,14 @@
   <v-row class="fill-height">
     <v-col>
       <v-sheet height="64">
-        <v-toolbar
-          flat
-          color="white"
-        >
-          <v-btn
-            color="primary"
-            class="mr-4"
-            @click="dialog = true"
-            dark
-          >
+        <v-toolbar flat color="white">
+          <v-btn color="primary" class="mr-4" @click="dialog = true" dark>
             New event
           </v-btn>
-          <v-btn
-            outlined
-            class="mr-4"
-            color="grey darken-2"
-            @click="setToday"
-          >
+          <v-btn outlined class="mr-4" color="grey darken-2" @click="setToday">
             Today
           </v-btn>
-          <v-btn
-            fab
-            text
-            small
-            color="grey darken-2"
-            @click="prev"
-          >
+          <v-btn fab text small color="grey darken-2" @click="prev">
             <v-icon small>mdi-chevron-left</v-icon>
           </v-btn>
           <v-btn
@@ -43,16 +24,9 @@
           </v-btn>
           <v-toolbar-title>{{ title }}</v-toolbar-title>
           <v-spacer></v-spacer>
-          <v-menu
-            bottom
-            right
-          >
+          <v-menu bottom right>
             <template v-slot:activator="{ on }">
-              <v-btn
-                outlined
-                color="grey darken-2"
-                v-on="on"
-              >
+              <v-btn outlined color="grey darken-2" v-on="on">
                 <span>{{ typeToLabel[type] }}</span>
                 <v-icon right>mdi-menu-down</v-icon>
               </v-btn>
@@ -76,19 +50,39 @@
       </v-sheet>
 
       <!-- Add event dialog -->
-      <v-dialog
-        v-model="dialog"
-        max-width="500"
-      >
+      <v-dialog v-model="dialog" max-width="500">
         <v-card>
           <v-container>
-            <v-form @submit.prevent="addEvent"></v-form>
-            <v-btn
-              type="submit"
-              color="primary"
-              class="mr-4"
-              @click.stop="dialog = false"
-            ></v-btn>
+            <v-form>
+              <v-text-field
+                v-model="name"
+                type="text"
+                label="event name (required)"
+              ></v-text-field>
+              <v-text-field
+                v-model="details"
+                type="text"
+                label="detail"
+              ></v-text-field>
+              <v-text-field
+                v-model="start"
+                type="date"
+                label="start (required)"
+              ></v-text-field>
+              <v-text-field
+                v-model="end"
+                type="date"
+                label="end (required)"
+              ></v-text-field>
+              <v-text-field
+                v-model="color"
+                type="color"
+                label="color (click to open color menu)"
+              ></v-text-field>
+            </v-form>
+            <v-btn color="primary" class="mr-4" @click.prevent="addEvent"
+              >Create Event</v-btn
+            >
           </v-container>
         </v-card>
       </v-dialog>
@@ -113,19 +107,9 @@
           :activator="selectedElement"
           offset-x
         >
-          <v-card
-            color="grey lighten-4"
-            min-width="350px"
-            flat
-          >
-            <v-toolbar
-              :color="selectedEvent.color"
-              dark
-            >
-              <v-btn
-                @click="deleteEvent(selectedEvent.id)"
-                icon
-              >
+          <v-card color="grey lighten-4" min-width="350px" flat>
+            <v-toolbar :color="selectedEvent.color" dark>
+              <v-btn @click="deleteEvent(selectedEvent.id)" icon>
                 <v-icon>mdi-delete</v-icon>
               </v-btn>
               <v-toolbar-title v-html="selectedEvent.name"></v-toolbar-title>
@@ -133,7 +117,7 @@
             </v-toolbar>
             <v-card-text>
               <form v-if="currentlyEditing !== selectedEvent.id">
-                {{selectedEvent.details}}
+                {{ selectedEvent.details }}
               </form>
               <form v-else>
                 <textarea-autosize
@@ -146,11 +130,7 @@
               </form>
             </v-card-text>
             <v-card-actions>
-              <v-btn
-                text
-                color="secondary"
-                @click="selectedOpen = false"
-              >
+              <v-btn text color="secondary" @click="selectedOpen = false">
                 Close
               </v-btn>
               <v-btn
@@ -160,11 +140,7 @@
               >
                 Edit
               </v-btn>
-              <v-btn
-                text
-                v-else
-                @click.prevent="updateEvent(selectedEvent)"
-              >
+              <v-btn text v-else @click.prevent="updateEvent(selectedEvent)">
                 Save
               </v-btn>
             </v-card-actions>
@@ -176,24 +152,24 @@
 </template>
 
 <script>
-import { db } from "@/main";
+import { db } from '@/main';
 
 export default {
   data() {
     return {
       today: new Date().toISOString().substr(0, 10),
       focus: new Date().toISOString().substr(0, 10),
-      type: "month",
+      type: 'month',
       typeToLabel: {
-        month: "Month",
-        week: "week",
-        day: "day",
-        "4day": "4 Days"
+        month: 'Month',
+        week: 'week',
+        day: 'day',
+        '4day': '4 Days'
       },
       name: null,
       start: null,
       end: null,
-      color: "#1976D2",
+      color: '#1976D2',
       currentlyEditing: null,
       selectedEvent: {},
       selectedElement: null,
@@ -201,42 +177,43 @@ export default {
       events: [],
       dialog: false,
       names: [],
-      colors: []
+      colors: [],
+      details: null
     };
   },
   computed: {
     title() {
       const { start, end } = this;
       if (!start || !end) {
-        return "";
+        return '';
       }
 
       const startMonth = this.monthFormatter(start);
       const endMonth = this.monthFormatter(end);
-      const suffixMonth = startMonth === endMonth ? "" : endMonth;
+      const suffixMonth = startMonth === endMonth ? '' : endMonth;
 
       const startYear = start.year;
       const endYear = end.year;
-      const suffixYear = startYear === endYear ? "" : endYear;
+      const suffixYear = startYear === endYear ? '' : endYear;
 
       const startDay = start.day + this.nth(start.day);
       const endDay = end.day + this.nth(end.day);
 
       switch (this.type) {
-        case "month":
+        case 'month':
           return `${startMonth} ${startYear}`;
-        case "week":
-        case "4day":
+        case 'week':
+        case '4day':
           return `${startMonth} ${startDay} ${startYear} - ${suffixMonth} ${endDay} ${suffixYear}`;
-        case "day":
+        case 'day':
           return `${startMonth} ${startDay} ${startYear}`;
       }
-      return "";
+      return '';
     },
     monthFormatter() {
       return this.$refs.calendar.getFormatter({
-        timeZone: "UTC",
-        month: "long"
+        timeZone: 'UTC',
+        month: 'long'
       });
     }
   },
@@ -245,7 +222,7 @@ export default {
   },
   methods: {
     async getEvents() {
-      let eventsSnapshot = await db.collection("calEvent").get();
+      let eventsSnapshot = await db.collection('calEvent').get();
       let events = [];
       eventsSnapshot.forEach(doc => {
         let appData = doc.data();
@@ -259,7 +236,7 @@ export default {
     },
     viewDay({ date }) {
       this.focus = date;
-      this.type = "day";
+      this.type = 'day';
     },
     setToday() {
       this.focus = this.today;
@@ -315,8 +292,8 @@ export default {
     },
     nth(d) {
       return d > 3 && d < 21
-        ? "th"
-        : ["th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th"][d % 10];
+        ? 'th'
+        : ['th', 'st', 'nd', 'rd', 'th', 'th', 'th', 'th', 'th', 'th'][d % 10];
     },
     rnd(a, b) {
       return Math.floor((b - a + 1) * Math.random()) + a;
@@ -332,7 +309,7 @@ export default {
     },
     async updateEvent(event) {
       await db
-        .collection("calEvent")
+        .collection('calEvent')
         .doc(this.currentlyEditing)
         .update({
           details: event.details
@@ -342,28 +319,31 @@ export default {
     },
     async deleteEvent(event) {
       await db
-        .collection("calEvent")
+        .collection('calEvent')
         .doc(event)
         .delete();
       this.selectedOpen = false;
       this.getEvents();
     },
-    async addEvent() {
+    addEvent() {
+      console.log('This happens');
       if (this.name && this.start && this.end) {
-        await db.collection("calEvent").add({
+        db.collection('calEvent').add({
           name: this.name,
           details: this.details,
           start: this.start,
           end: this.end,
           color: this.color
         });
-        this.name = "";
-        this.details = "";
-        this.start = "";
-        this.end = "";
-        this.color = "#1976D2";
+        this.name = '';
+        this.details = '';
+        this.start = '';
+        this.end = '';
+        this.color = '#1976D2';
+        this.dialog = false;
+        this.getEvents();
       } else {
-        alert("missing fieldss");
+        alert('missing fieldss');
       }
     }
   }
