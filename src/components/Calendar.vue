@@ -153,53 +153,89 @@
 
 <script>
 import { db } from '@/main';
+import { computed, ref, reactive, onMounted } from '@vue/composition-api';
 
 export default {
-  data() {
-    return {
-      today: new Date().toISOString().substr(0, 10),
-      focus: new Date().toISOString().substr(0, 10),
-      type: 'month',
-      typeToLabel: {
-        month: 'Month',
-        week: 'week',
-        day: 'day',
-        '4day': '4 Days'
-      },
-      name: null,
-      start: null,
-      end: null,
-      color: '#1976D2',
-      currentlyEditing: null,
-      selectedEvent: {},
-      selectedElement: null,
-      selectedOpen: false,
-      events: [],
-      dialog: false,
-      names: [],
-      colors: [],
-      details: null
+  setup(props, context) {
+    getEvents();
+
+    // console.log(parent.$refs.calendar);
+
+    // state or data
+    // console.log(context.refs);
+
+    let monthFormatter = function() {};
+
+    onMounted(() => {
+      console.log(context.refs.calendar);
+      monthFormatter = context.refs.calendar.getFormatter({
+        timeZone: 'UTC',
+        month: 'long',
+      });
+    });
+
+    const today = ref(new Date().toISOString().substr(0, 10));
+    const focus = ref(new Date().toISOString().substr(0, 10));
+    const type = ref('month');
+    const typeToLabel = reactive({
+      month: 'Month',
+      week: 'week',
+      day: 'day',
+      '4day': '4 Days',
+    });
+    const name = ref(null);
+    const start = ref(null);
+    const end = ref(null);
+    const color = ref('#1976D2');
+    const currentlyEditing = ref(null);
+    const selectedEvent = reactive({});
+    const selectedElement = ref(null);
+    const selectedOpen = ref(false);
+    const events = ref([]);
+    const dialog = ref(false);
+    const names = ref([]);
+    const colors = ref([]);
+    const details = ref(null);
+
+    const state = {
+      today,
+      focus,
+      type,
+      typeToLabel,
+      name,
+      start,
+      end,
+      color,
+      currentlyEditing,
+      selectedEvent,
+      selectedElement,
+      selectedOpen,
+      events,
+      dialog,
+      names,
+      colors,
+      details,
     };
-  },
-  computed: {
-    title() {
-      const { start, end } = this;
+
+    // Computed properties
+
+    const title = computed(() => {
       if (!start || !end) {
         return '';
       }
 
-      const startMonth = this.monthFormatter(start);
-      const endMonth = this.monthFormatter(end);
+      const startMonth = monthFormatter(start);
+      const endMonth = monthFormatter(end);
       const suffixMonth = startMonth === endMonth ? '' : endMonth;
 
       const startYear = start.year;
       const endYear = end.year;
       const suffixYear = startYear === endYear ? '' : endYear;
 
-      const startDay = start.day + this.nth(start.day);
-      const endDay = end.day + this.nth(end.day);
+      const startDay = start.day + nth(start.day);
+      const endDay = end.day + nth(end.day);
 
-      switch (this.type) {
+      switch (type) {
         case 'month':
           return `${startMonth} ${startYear}`;
         case 'week':
@@ -209,143 +245,170 @@ export default {
           return `${startMonth} ${startDay} ${startYear}`;
       }
       return '';
-    },
-    monthFormatter() {
-      return this.$refs.calendar.getFormatter({
-        timeZone: 'UTC',
-        month: 'long'
-      });
-    }
-  },
-  mounted() {
-    this.getEvents();
-  },
-  methods: {
-    async getEvents() {
+    });
+
+    // function monthFormatter() {
+    // context.refs.calendar.getFormatter({
+    //   timeZone: 'UTC',
+    //   month: 'long',
+    // });
+    // }
+
+    // const monthFormatter = context.refs.calendar?.getFormatter({
+    //   timeZone: 'UTC',
+    //   month: 'long',
+    // });
+
+    const computedState = {
+      monthFormatter,
+      title,
+    };
+
+    async function getEvents() {
       let eventsSnapshot = await db.collection('calEvent').get();
-      let events = [];
+      let eventsGot = [];
       eventsSnapshot.forEach(doc => {
         let appData = doc.data();
         appData.id = doc.id;
-        events.push(appData);
+        eventsGot.push(appData);
       });
-      this.events = events;
-    },
-    getEventColor(ev) {
+      events.value = eventsGot;
+    }
+    function getEventColor(ev) {
       return ev.color;
-    },
-    viewDay({ date }) {
-      this.focus = date;
-      this.type = 'day';
-    },
-    setToday() {
-      this.focus = this.today;
-    },
-    prev() {
-      this.$refs.calendar.prev();
-    },
-    next() {
-      this.$refs.calendar.next();
-    },
-    showEvent({ nativeEvent, event }) {
+    }
+    function viewDay({ date }) {
+      focus.value = date;
+      type.value = 'day';
+    }
+    function setToday() {
+      focus.value = today;
+    }
+    function prev() {
+      context.refs.calendar.prev();
+    }
+    function next() {
+      context.refs.calendar.next();
+    }
+    function showEvent({ nativeEvent, event }) {
       const open = () => {
-        this.selectedEvent = event;
-        this.selectedElement = nativeEvent.target;
-        setTimeout(() => (this.selectedOpen = true), 10);
+        selectedEvent.value = event;
+        selectedElement.value = nativeEvent.target;
+        setTimeout(() => (selectedOpen.value = true), 10);
       };
 
-      if (this.selectedOpen) {
-        this.selectedOpen = false;
+      if (selectedOpen) {
+        selectedOpen.value = false;
         setTimeout(open, 10);
       } else {
         open();
       }
 
       nativeEvent.stopPropagation();
-    },
-    updateRange({ start, end }) {
+    }
+    function updateRange({ start, end }) {
       const events = [];
 
       const min = new Date(`${start.date}T00:00:00`);
       const max = new Date(`${end.date}T23:59:59`);
       const days = (max.getTime() - min.getTime()) / 86400000;
-      const eventCount = this.rnd(days, days + 20);
+      const eventCount = rnd(days, days + 20);
 
       for (let i = 0; i < eventCount; i++) {
-        const allDay = this.rnd(0, 3) === 0;
-        const firstTimestamp = this.rnd(min.getTime(), max.getTime());
+        const allDay = rnd(0, 3) === 0;
+        const firstTimestamp = rnd(min.getTime(), max.getTime());
         const first = new Date(firstTimestamp - (firstTimestamp % 900000));
-        const secondTimestamp = this.rnd(2, allDay ? 288 : 8) * 900000;
+        const secondTimestamp = rnd(2, allDay ? 288 : 8) * 900000;
         const second = new Date(first.getTime() + secondTimestamp);
 
         events.push({
-          name: this.names[this.rnd(0, this.names.length - 1)],
-          start: this.formatDate(first, !allDay),
-          end: this.formatDate(second, !allDay),
-          color: this.colors[this.rnd(0, this.colors.length - 1)]
+          name: names[rnd(0, names.length - 1)],
+          start: formatDate(first, !allDay),
+          end: formatDate(second, !allDay),
+          color: colors[rnd(0, colors.length - 1)],
         });
       }
 
-      this.start = start;
-      this.end = end;
-      this.events = events;
-    },
-    nth(d) {
+      start.value = start;
+      end.value = end;
+      events.value = events;
+    }
+    function nth(d) {
       return d > 3 && d < 21
         ? 'th'
         : ['th', 'st', 'nd', 'rd', 'th', 'th', 'th', 'th', 'th', 'th'][d % 10];
-    },
-    rnd(a, b) {
+    }
+    function rnd(a, b) {
       return Math.floor((b - a + 1) * Math.random()) + a;
-    },
-    formatDate(a, withTime) {
+    }
+    function formatDate(a, withTime) {
       return withTime
         ? `${a.getFullYear()}-${a.getMonth() +
             1}-${a.getDate()} ${a.getHours()}:${a.getMinutes()}`
         : `${a.getFullYear()}-${a.getMonth() + 1}-${a.getDate()}`;
-    },
-    editEvent(event) {
-      this.currentlyEditing = event.id;
-    },
-    async updateEvent(event) {
+    }
+    function editEvent(event) {
+      currentlyEditing.value = event.id;
+    }
+    async function updateEvent(event) {
       await db
         .collection('calEvent')
-        .doc(this.currentlyEditing)
+        .doc(currentlyEditing)
         .update({
-          details: event.details
+          details: event.details,
         });
-      this.selectedOpen = false;
-      this.currentlyEditing = null;
-    },
-    async deleteEvent(event) {
+      selectedOpen.value = false;
+      currentlyEditing.value = null;
+    }
+    async function deleteEvent(event) {
       await db
         .collection('calEvent')
         .doc(event)
         .delete();
-      this.selectedOpen = false;
-      this.getEvents();
-    },
-    addEvent() {
+      selectedOpen.value = false;
+      getEvents();
+    }
+    async function addEvent() {
       console.log('This happens');
-      if (this.name && this.start && this.end) {
+      if (name && start && end) {
         db.collection('calEvent').add({
-          name: this.name,
-          details: this.details,
-          start: this.start,
-          end: this.end,
-          color: this.color
+          name: name.value,
+          details: details.value,
+          start: start.value,
+          end: end.value,
+          color: color.value,
         });
-        this.name = '';
-        this.details = '';
-        this.start = '';
-        this.end = '';
-        this.color = '#1976D2';
-        this.dialog = false;
-        this.getEvents();
+        name.value = '';
+        details.value = '';
+        start.value = '';
+        end.value = '';
+        color.value = '#1976D2';
+        dialog.value = false;
+        getEvents();
       } else {
         alert('missing fieldss');
       }
     }
-  }
+
+    const functionsState = {
+      addEvent,
+      deleteEvent,
+      updateEvent,
+      updateRange,
+      nth,
+      rnd,
+      formatDate,
+      editEvent,
+      getEvents,
+      getEventColor,
+      showEvent,
+      setToday,
+      prev,
+      next,
+      viewDay,
+    };
+
+    return { ...state, ...computedState, ...functionsState };
+  },
 };
 </script>
